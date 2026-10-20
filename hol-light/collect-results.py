@@ -52,6 +52,11 @@ import subprocess
 import sys
 from pathlib import Path
 
+# Both benchmark collectors are standalone scripts in sibling directories.
+# Add the repository's common/ directory so they share one machine schema.
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "common"))
+from machine_info import collect_machine_info  # noqa: E402
+
 SKIP_MARKER = re.compile(r"^### Error: skip", re.MULTILINE)
 FAIL_MARKER = re.compile(r"^Error in included file", re.MULTILINE)
 
@@ -253,6 +258,7 @@ def main() -> int:
     output = {
         "hol_light_dir": str(hol_light_dir),
         "log_dir": str(log_dir),
+        "machine": collect_machine_info(),
         "total": len(results),
         "counts": counts,
         "total_elapsed_seconds": round(total_elapsed, 2),

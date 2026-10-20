@@ -10,6 +10,11 @@ Target platform for this setup: **Ubuntu on arm64 (aarch64)**.
 In command descriptions, `<argument>` is required and `[argument]` is
 optional. Replace the argument name with a value; do not type the brackets.
 
+`init/ubuntu/create-workspace.sh` defaults to
+`https://github.com/jrh13/hol-light` at its latest default-branch commit
+(`HEAD`) and uses the `switch-5` target. Pass the optional arguments to pin a
+repository, commit, or switch target.
+
 | Script | Purpose |
 | --- | --- |
 | `ubuntu/install-dependencies.sh <hol-light dir>` | Checks apt build/test dependencies and builds the external SAT/theorem-prover tools from source into `<hol-light dir>/external-bin`. Nothing is installed system-wide and no sudo is used for the source builds. |
@@ -19,8 +24,9 @@ optional. Replace the argument name with a value; do not type the brackets.
 Typical flow:
 
 ```bash
-# 1. Provision a workspace + checkout (one specific commit)
-init/ubuntu/create-workspace.sh <parent dir> <repo url> <commit> <switch|switch-5>
+# 1. Provision a workspace + checkout. The upstream repository, HEAD, and
+#    `switch-5` target are defaults; pass optional values to pin a run.
+init/ubuntu/create-workspace.sh <parent dir> [repo URL] [commit-ish] [switch|switch-5]
 
 # 2. Build external tools into that checkout
 hol-light/ubuntu/install-dependencies.sh <parent dir>/holbench-.../hol-light
@@ -126,7 +132,10 @@ Each record also carries timing parsed from the `time` summary line that
 `holtest.mk` emits via `(time $(HOLLIGHT))`
 (`<u>user <s>system <e>elapsed ...`): `elapsed_seconds`, `user_seconds`,
 `system_seconds` (all `null` for skipped/missing tests with no timing line).
-The top-level output includes `counts` and `total_elapsed_seconds`.
+The top-level output includes `counts`, `total_elapsed_seconds`, and a
+`machine` object containing the CPU architecture and brand, online core count,
+and total memory in bytes and GiB. Both benchmark collectors populate this
+object through the shared `../common/machine_info.py` helper.
 
 Example (abridged):
 

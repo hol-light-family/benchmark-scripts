@@ -1,16 +1,26 @@
 #!/bin/bash
+# create-workspace.sh <parent dir> [hol-light GitHub repo] [commit-ish]
+#                     [switch|switch-5]
+#
+# Defaults to the upstream HOL Light repository at its latest default-branch
+# commit (HEAD), using the `make switch-5` opam target.
 set -euo pipefail
 
-if [ "$#" -ne 4 ]; then
-  echo "create-workspace.sh <parent dir> <hol-light Github repo> <hol-light commit hash>"
-  echo "                    <make switch param(either switch or switch-5)>"
+if [ "$#" -lt 1 ] || [ "$#" -gt 4 ]; then
+  echo "create-workspace.sh <parent dir> [hol-light GitHub repo] [commit-ish]" >&2
+  echo "                    [switch|switch-5]" >&2
   exit 1
 fi
 
 parent_dir=$1
-hol_light_repo_url=$2
-hol_light_commit=$3
-switch_param=$4
+hol_light_repo_url=${2:-https://github.com/jrh13/hol-light}
+hol_light_commit=${3:-HEAD}
+switch_param=${4:-switch-5}
+
+case "$switch_param" in
+  switch|switch-5) ;;
+  *) echo "switch target must be 'switch' or 'switch-5', got '$switch_param'" >&2; exit 1 ;;
+esac
 
 # Packages required to build HOL Light (OCaml + opam switch + native compile
 # toolchain) on a fresh Ubuntu machine.
@@ -26,6 +36,7 @@ required_apt_packages=(
   patch
   bubblewrap
   opam
+  python3
 )
 
 missing_packages=()
@@ -66,7 +77,7 @@ cd "$workspace_path"
 # Fetch a single commit as a tarball from Github's codeload service instead of
 # a git clone.
 resolved_commit=$(curl -fsSL "https://api.github.com/repos/$owner_repo/commits/$hol_light_commit" \
-  | grep -m1 '"sha"' | sed -E 's/.*"sha":\s*"([0-9a-f]+)".*/\1/')
+  | python3 -c 'import json, sys; print(json.load(sys.stdin)["sha"])')
 if [[ ! "$resolved_commit" =~ ^[0-9a-f]{40}$ ]]; then
   echo "Could not resolve '$hol_light_commit' to a full commit hash in $owner_repo." >&2
   exit 1

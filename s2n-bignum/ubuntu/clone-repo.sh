@@ -1,5 +1,5 @@
 #!/bin/bash
-# clone-repo.sh <workspace dir> <s2n-bignum repo url> <commit-ish>
+# clone-repo.sh <workspace dir> [s2n-bignum repo URL] [commit-ish]
 #
 # Clones s2n-bignum into an existing benchmark workspace, right next to the
 # hol-light checkout, i.e. it creates <workspace dir>/s2n-bignum. This is the
@@ -9,17 +9,19 @@
 #
 # A full clone (not --depth 1) is used: a specific commit-ish may not be the
 # tip, and the proof Makefiles are happier with a normal git working tree.
+# The repository defaults to https://github.com/awslabs/s2n-bignum.git and
+# commit-ish defaults to HEAD (the latest commit on its default branch).
 # The resolved commit is written to <workspace dir>/s2n-bignum/S2N_BIGNUM_COMMIT.
 set -euo pipefail
 
-if [ "$#" -ne 3 ]; then
-  echo "clone-repo.sh <workspace dir> <s2n-bignum repo url> <commit-ish>" >&2
+if [ "$#" -lt 1 ] || [ "$#" -gt 3 ]; then
+  echo "clone-repo.sh <workspace dir> [s2n-bignum repo URL] [commit-ish]" >&2
   exit 1
 fi
 
 workspace_dir=$1
-repo_url=$2
-commit_ish=$3
+repo_url=${2:-https://github.com/awslabs/s2n-bignum.git}
+commit_ish=${3:-HEAD}
 
 if ! command -v git >/dev/null 2>&1; then
   echo "git is required but not found on PATH." >&2

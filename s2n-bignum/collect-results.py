@@ -41,12 +41,17 @@ wall-clock time (parsed from the "Running time: <secs> sec, ..." line that
 (the same theorems ../tools/collect-specs.sh collects, but attributed back to
 the proof file that produced them).
 """
+import argparse
 import json
 import re
 import subprocess
 import sys
 from pathlib import Path
-import argparse
+
+# Both benchmark collectors are standalone scripts in sibling directories.
+# Add the repository's common/ directory so they share one machine schema.
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "common"))
+from machine_info import collect_machine_info  # noqa: E402
 
 SUSPICIOUS_MARKER = re.compile(r"error:|exception:|error in included file", re.IGNORECASE)
 BENIGN_MARKER = re.compile(r"^### Error: skip", re.IGNORECASE)
@@ -197,6 +202,7 @@ def main() -> int:
         "s2n_bignum_dir": str(s2n_dir),
         "arch": arch,
         "arch_dir": str(arch_dir),
+        "machine": collect_machine_info(),
         "total": len(results),
         "counts": counts,
         "total_elapsed_seconds": round(total_elapsed, 2),

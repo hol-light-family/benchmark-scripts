@@ -17,7 +17,7 @@ optional. Replace the argument name with a value; do not type the brackets.
 
 | Script | Purpose |
 | --- | --- |
-| `ubuntu/clone-repo.sh <workspace dir> <repo url> <commit-ish>` | Full `git clone` of s2n-bignum into `<workspace dir>/s2n-bignum`, i.e. right next to the hol-light checkout in the same workspace, then checks out `<commit-ish>`. Writes the resolved commit to `s2n-bignum/S2N_BIGNUM_COMMIT`. |
+| `ubuntu/clone-repo.sh <workspace dir> [repo URL] [commit-ish]` | Full `git clone` of s2n-bignum into `<workspace dir>/s2n-bignum`, i.e. right next to the hol-light checkout in the same workspace. Defaults to `https://github.com/awslabs/s2n-bignum.git` at the latest default-branch commit (`HEAD`), then checks out the resolved commit detached. Writes it to `s2n-bignum/S2N_BIGNUM_COMMIT`. |
 | `ubuntu/install-dependencies.sh` | Checks (does not install) the apt packages and the **foreign-architecture** cross toolchain needed to build and check both `arm/` and `x86/` proofs on this host. Prints an `apt-get install` line if anything is missing. |
 | `ubuntu/run.sh <s2n-bignum dir> <arm\|x86> <hol-light dir>` | Builds the proof binaries, runs the proofs for one architecture, then prints running times, proven specifications, and a failure scan. Tutorials are not built or run. |
 | `collect-results.py <s2n-bignum dir> <arm\|x86> [-o out.json] [--no-write]` | Parses the architecture's `*.correct` proof logs and emits JSON with per-proof pass/fail/missing status plus timing. Prints to stdout, and by default also writes `<workspace dir>/s2n-bignum-<arch>-results.json` (the workspace being `<s2n-bignum dir>`'s parent). Platform-independent (pure Python + `make`), so it lives at the top level rather than under `ubuntu/`. |
@@ -37,8 +37,8 @@ Assuming hol-light already lives in a workspace, e.g.
 WS=~/holbench-workspace/holbench-2026-10-18-15.29.1792337369
 HOL=$WS/hol-light
 
-# 1. Clone s2n-bignum next to hol-light
-s2n-bignum/ubuntu/clone-repo.sh "$WS" https://github.com/awslabs/s2n-bignum.git main
+# 1. Clone s2n-bignum next to hol-light. The repository URL and HEAD are defaults.
+s2n-bignum/ubuntu/clone-repo.sh "$WS"
 
 # 2. Check apt deps + cross toolchain (install whatever it lists, then re-run)
 s2n-bignum/ubuntu/install-dependencies.sh
@@ -84,7 +84,10 @@ Each record also carries:
   that log proved (the same theorems `tools/collect-specs.sh` collects
   suite-wide, attributed back to the proof file that produced them).
 
-The top-level output includes `counts` and `total_elapsed_seconds`.
+The top-level output includes `counts`, `total_elapsed_seconds`, and a
+`machine` object containing the CPU architecture and brand, online core count,
+and total memory in bytes and GiB. Both benchmark collectors populate this
+object through the shared `../common/machine_info.py` helper.
 
 Example (abridged):
 
