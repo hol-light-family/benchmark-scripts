@@ -19,7 +19,7 @@ repository, commit, or switch target.
 | --- | --- |
 | `ubuntu/install-dependencies.sh <hol-light dir>` | Checks apt build/test dependencies and builds the external SAT/theorem-prover tools from source into `<hol-light dir>/external-bin`. Nothing is installed system-wide and no sudo is used for the source builds. |
 | `ubuntu/run.sh <hol-light dir> [log dir]` | Runs `holtest.mk` against an initialized checkout, prepending `<hol-light dir>/external-bin` to `PATH`. Picks a `make -j` job count (see "Parallelism" below). Default log dir is `/tmp/hol-light-test` (holtest.mk's hardcoded default). |
-| `collect-results.py <hol-light dir> [log dir] [-o out.json] [--no-write]` | Parses the log dir and emits JSON with per-test pass/fail/skip/missing status plus timing. Prints to stdout, and by default also writes `<workspace dir>/hol-light-results.json` (the workspace being `<hol-light dir>`'s parent). Platform-independent (pure Python + `make`), so it lives at the top level rather than under `ubuntu/`. |
+| `collect-results.py <hol-light dir> [log dir] [-o out.json] [--no-write]` | Parses the log dir and emits JSON with per-test pass/fail/skip/missing status, timing, and the HOL Light commit hash. Prints to stdout, and by default also writes `<workspace dir>/hol-light-results.json` (the workspace being `<hol-light dir>`'s parent). Platform-independent (pure Python + `make`), so it lives at the top level rather than under `ubuntu/`. |
 
 Typical flow:
 
@@ -132,10 +132,11 @@ Each record also carries timing parsed from the `time` summary line that
 `holtest.mk` emits via `(time $(HOLLIGHT))`
 (`<u>user <s>system <e>elapsed ...`): `elapsed_seconds`, `user_seconds`,
 `system_seconds` (all `null` for skipped/missing tests with no timing line).
-The top-level output includes `counts`, `total_elapsed_seconds`, and a
-`machine` object containing the CPU architecture and brand, online core count,
-and total memory in bytes and GiB. Both benchmark collectors populate this
-object through the shared `../common/machine_info.py` helper.
+The top-level output includes `hol_light_commit`, `counts`,
+`total_elapsed_seconds`, and a `machine` object containing the CPU architecture
+and brand, online core count, and total memory in bytes and GiB. Both benchmark
+collectors populate the machine object through the shared
+`../common/machine_info.py` helper.
 
 Example (abridged):
 

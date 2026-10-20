@@ -55,6 +55,7 @@ from pathlib import Path
 # Both benchmark collectors are standalone scripts in sibling directories.
 # Add the repository's common/ directory so they share one machine schema.
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "common"))
+from commit_info import resolve_commit  # noqa: E402
 from machine_info import collect_machine_info  # noqa: E402
 
 SKIP_MARKER = re.compile(r"^### Error: skip", re.MULTILINE)
@@ -255,8 +256,15 @@ def main() -> int:
         r["elapsed_seconds"] for r in results if r["elapsed_seconds"] is not None
     )
 
+    try:
+        hol_light_commit = resolve_commit(hol_light_dir, "HOL_LIGHT_COMMIT")
+    except RuntimeError as error:
+        print(error, file=sys.stderr)
+        return 1
+
     output = {
         "hol_light_dir": str(hol_light_dir),
+        "hol_light_commit": hol_light_commit,
         "log_dir": str(log_dir),
         "machine": collect_machine_info(),
         "total": len(results),

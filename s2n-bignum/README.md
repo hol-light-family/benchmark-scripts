@@ -20,7 +20,7 @@ optional. Replace the argument name with a value; do not type the brackets.
 | `ubuntu/clone-repo.sh <workspace dir> [repo URL] [commit-ish]` | Full `git clone` of s2n-bignum into `<workspace dir>/s2n-bignum`, i.e. right next to the hol-light checkout in the same workspace. Defaults to `https://github.com/awslabs/s2n-bignum.git` at the latest default-branch commit (`HEAD`), then checks out the resolved commit detached. Writes it to `s2n-bignum/S2N_BIGNUM_COMMIT`. |
 | `ubuntu/install-dependencies.sh` | Checks (does not install) the apt packages and the **foreign-architecture** cross toolchain needed to build and check both `arm/` and `x86/` proofs on this host. Prints an `apt-get install` line if anything is missing. |
 | `ubuntu/run.sh <s2n-bignum dir> <arm\|x86> <hol-light dir>` | Builds the proof binaries, runs the proofs for one architecture, then prints running times, proven specifications, and a failure scan. Tutorials are not built or run. |
-| `collect-results.py <s2n-bignum dir> <arm\|x86> [-o out.json] [--no-write]` | Parses the architecture's `*.correct` proof logs and emits JSON with per-proof pass/fail/missing status plus timing. Prints to stdout, and by default also writes `<workspace dir>/s2n-bignum-<arch>-results.json` (the workspace being `<s2n-bignum dir>`'s parent). Platform-independent (pure Python + `make`), so it lives at the top level rather than under `ubuntu/`. |
+| `collect-results.py <s2n-bignum dir> <arm\|x86> [--hol-light-dir DIR] [-o out.json] [--no-write]` | Parses the architecture's `*.correct` proof logs and emits JSON with per-proof pass/fail/missing status, timing, and the s2n-bignum/HOL Light commit hashes. The HOL Light checkout defaults to the sibling `hol-light/`. Prints to stdout, and by default also writes `<workspace dir>/s2n-bignum-<arch>-results.json`. |
 
 Shared helper (one level up, used by both benchmark flows):
 
@@ -84,10 +84,11 @@ Each record also carries:
   that log proved (the same theorems `tools/collect-specs.sh` collects
   suite-wide, attributed back to the proof file that produced them).
 
-The top-level output includes `counts`, `total_elapsed_seconds`, and a
-`machine` object containing the CPU architecture and brand, online core count,
-and total memory in bytes and GiB. Both benchmark collectors populate this
-object through the shared `../common/machine_info.py` helper.
+The top-level output includes `s2n_bignum_commit`, `hol_light_commit`,
+`counts`, `total_elapsed_seconds`, and a `machine` object containing the CPU
+architecture and brand, online core count, and total memory in bytes and GiB.
+Both benchmark collectors populate the machine object through the shared
+`../common/machine_info.py` helper.
 
 Example (abridged):
 

@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-"""collect-results.py <s2n-bignum dir> <arm|x86> [-o output.json]
+"""collect-results.py <s2n-bignum dir> <arm|x86>
+                      [--hol-light-dir DIR] [-o output.json]
 
 Parses the output of an s2n-bignum `make proofs` run (see ubuntu/run.sh) and
 reports, as JSON, the pass/fail/missing status of every proof defined in the
@@ -51,6 +52,7 @@ from pathlib import Path
 # Both benchmark collectors are standalone scripts in sibling directories.
 # Add the repository's common/ directory so they share one machine schema.
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "common"))
+from commit_info import resolve_commit  # noqa: E402
 from machine_info import collect_machine_info  # noqa: E402
 
 SUSPICIOUS_MARKER = re.compile(r"error:|exception:|error in included file", re.IGNORECASE)
@@ -163,6 +165,11 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     parser.add_argument("s2n_bignum_dir", help="path to the s2n-bignum checkout")
     parser.add_argument("arch", choices=["arm", "x86"], help="architecture to report on")
     parser.add_argument(
+        "--hol-light-dir",
+        help="HOL Light checkout used for the proofs "
+             "(default: sibling <workspace dir>/hol-light)",
+    )
+    parser.add_argument(
         "-o", "--output",
         help="path to write the JSON report to "
              "(default: <workspace dir>/s2n-bignum-<arch>-results.json, "
@@ -181,10 +188,18 @@ def main() -> int:
 
     s2n_dir = Path(args.s2n_bignum_dir).resolve()
     arch = args.arch
+    hol_light_dir = (
+        Path(args.hol_light_dir).resolve()
+        if args.hol_light_dir
+        else s2n_dir.parent / "hol-light"
+    )
 
     arch_dir = s2n_dir / arch
     if not (arch_dir / "Makefile").is_file():
         print(f"{arch_dir} does not contain a Makefile", file=sys.stderr)
+        return 1
+    if not hol_light_dir.is_dir():
+        print(f"HOL Light directory does not exist: {hol_light_dir}", file=sys.stderr)
         return 1
 
     proof_logs = get_proof_logs(arch_dir)
@@ -198,8 +213,18 @@ def main() -> int:
         r["elapsed_seconds"] for r in results if r["elapsed_seconds"] is not None
     )
 
+    try:
+        s2n_bignum_commit = resolve_commit(s2n_dir, "S2N_BIGNUM_COMMIT")
+        hol_light_commit = resolve_commit(hol_light_dir, "HOL_LIGHT_COMMIT")
+    except RuntimeError as error:
+        print(error, file=sys.stderr)
+        return 1
+
     output = {
         "s2n_bignum_dir": str(s2n_dir),
+        "s2n_bignum_commit": s2n_bignum_commit,
+        "hol_light_dir": str(hol_light_dir),
+        "hol_light_commit": hol_light_commit,
         "arch": arch,
         "arch_dir": str(arch_dir),
         "machine": collect_machine_info(),
