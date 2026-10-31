@@ -8,7 +8,47 @@ Published reports and the browser dashboard live in the companion
 In command descriptions, `<argument>` is required and `[argument]` is
 optional. Replace the argument name with a value; do not type the brackets.
 
-## 1. Create a workspace
+## Run the complete suite
+
+`run-all.sh` creates a workspace, runs every benchmark, writes the six JSON
+reports and a manifest under the requested results directory, and prepends the
+run to `runs.json`:
+
+```bash
+./run-all.sh \
+  <HOL Light repo URL> \
+  <commit-ish> \
+  [benchmark-results dir] \
+  [runs parent]
+```
+
+The last two arguments default to `~/benchmark-results` and
+`~/holbench-runs`. For example:
+
+```bash
+./run-all.sh \
+  https://github.com/jrh13/hol-light.git \
+  <HOL Light commit>
+```
+
+For comparable HOL Light runs, the script defaults to the pinned s2n-bignum,
+Flyspeck, and Navier_Stokes revisions used by the existing reports. Override
+them when needed:
+
+```bash
+S2N_BIGNUM_COMMIT=<commit-ish> \
+FLYSPECK_COMMIT=<commit-ish> \
+NAVIER_STOKES_COMMIT=<commit-ish> \
+  ./run-all.sh <HOL Light repo URL> <commit-ish>
+```
+
+The script runs the major stages sequentially, except Flyspeck, Navier-Stokes,
+and parallel 4CT. Those three overlap because Flyspeck and Navier-Stokes are
+single-core. If a benchmark fails, the
+script still attempts to collect its report and continue, then exits nonzero.
+It refuses to overwrite an existing result directory.
+
+## Create a workspace
 
 Start by creating and building a fresh HOL Light workspace:
 
@@ -57,110 +97,18 @@ mkdir -p "$WS/logs"
 The setup script checks required Ubuntu packages and reports an `apt-get`
 command if any are missing. It expects `opam` to have already been initialized.
 
-## 2. Run HOL Light holtest
+## Run individual benchmarks
 
-Prepare the external tools, run `holtest.mk`, and collect its JSON report:
+Each benchmark directory has a README that explains how to run that benchmark
+in the workspace and collect its JSON report:
 
-```bash
-./hol-light/ubuntu/install-dependencies.sh "$WS/hol-light"
-./hol-light/ubuntu/run.sh "$WS/hol-light" "$WS/holtest-logs" \
-  > "$WS/logs/holtest-run.log" 2>&1
-./hol-light/collect-results.py "$WS/hol-light" "$WS/holtest-logs"
-```
-
-This writes:
-
-```text
-$WS/hol-light-results.json
-```
-
-See [`hol-light/README.md`](hol-light/README.md) for dependency, skip, timing,
-and parallelism details.
-
-## 3. Run s2n-bignum
-
-Clone s2n-bignum next to HOL Light, check the native/cross toolchains, run the
-architectures sequentially, and collect both reports:
-
-```bash
-./s2n-bignum/ubuntu/clone-repo.sh "$WS"
-./s2n-bignum/ubuntu/install-dependencies.sh
-
-./s2n-bignum/ubuntu/run.sh \
-  "$WS/s2n-bignum" arm "$WS/hol-light" \
-  > "$WS/logs/s2n-arm-run.log" 2>&1
-./s2n-bignum/collect-results.py "$WS/s2n-bignum" arm
-
-./s2n-bignum/ubuntu/run.sh \
-  "$WS/s2n-bignum" x86 "$WS/hol-light" \
-  > "$WS/logs/s2n-x86-run.log" 2>&1
-./s2n-bignum/collect-results.py "$WS/s2n-bignum" x86
-```
-
-`clone-repo.sh` defaults to
-`https://github.com/awslabs/s2n-bignum.git` at `HEAD`. Pass the optional URL
-and commit-ish to pin it. The resulting files are:
-
-```text
-$WS/s2n-bignum-arm-results.json
-$WS/s2n-bignum-x86-results.json
-```
-
-See [`s2n-bignum/README.md`](s2n-bignum/README.md), especially its HOL Light
-version and memory guidance.
-
-## 4. Run Flyspeck
-
-Clone Flyspeck and load the complete sequence documented by its
-`load_flyspeck.ml`:
-
-```bash
-./Flyspeck/ubuntu/clone-repo.sh "$WS"
-./Flyspeck/ubuntu/run.sh \
-  "$WS/Flyspeck" "$WS/hol-light" "$WS/logs/flyspeck-run.log"
-./Flyspeck/collect-results.py \
-  "$WS/Flyspeck" "$WS/logs/flyspeck-run.log"
-```
-
-The clone defaults to
-`https://github.com/hol-light-family/Flyspeck.git` at `HEAD`. The runner ends
-at `map flyspeck_needs Build.build_sequence_full;;`; it does not recompute the
-Azure nonlinear-inequality work. Flyspeck's linear-program verification can
-take many hours.
-
-This writes:
-
-```text
-$WS/flyspeck-results.json
-```
-
-See [`Flyspeck/README.md`](Flyspeck/README.md) for scope and success criteria.
-
-## 5. Run the Four Colour Theorem
-
-The 4CT source is already inside the HOL Light checkout. Run its OCaml 5
-parallel bytecode target and collect the result:
-
-```bash
-./4CT/ubuntu/run.sh "$WS/hol-light" "$WS/logs/4ct-run.log"
-./4CT/collect-results.py "$WS/hol-light" "$WS/logs/4ct-run.log"
-```
-
-The runner defaults to the smaller of the online CPU count and 128 OCaml
-domains. Override it with `FOURCOLOR_DOMAINS`:
-
-```bash
-FOURCOLOR_DOMAINS=64 \
-  ./4CT/ubuntu/run.sh "$WS/hol-light" "$WS/logs/4ct-run.log"
-```
-
-This writes:
-
-```text
-$WS/4ct-results.json
-```
-
-See [`4CT/README.md`](4CT/README.md) for the final theorems and parallel route.
+| Benchmark | Instructions |
+| --- | --- |
+| HOL Light holtest | [`hol-light/README.md`](hol-light/README.md) |
+| s2n-bignum (ARM and x86) | [`s2n-bignum/README.md`](s2n-bignum/README.md) |
+| Flyspeck | [`Flyspeck/README.md`](Flyspeck/README.md) |
+| Four Colour Theorem | [`4CT/README.md`](4CT/README.md) |
+| Navier-Stokes | [`navier-stokes/README.md`](navier-stokes/README.md) |
 
 ## Result format
 

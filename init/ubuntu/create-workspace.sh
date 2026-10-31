@@ -96,3 +96,5 @@ make "$switch_param"
 eval "$(opam env --set-switch)"
 export HOLLIGHT_USE_MODULE=1
 make
+
+printf '\nWorkspace ready: %s\n' "$workspace_path"
