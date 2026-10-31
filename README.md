@@ -123,5 +123,7 @@ Every report includes:
 - the applicable HOL Light and project commit hashes, and
 - shared machine metadata: architecture, CPU model, online cores, and memory.
 
+The run manifest also records the OCaml compiler version used by the workspace.
+
 The collectors exit nonzero for failed or missing work. Keep raw logs until the
 JSON has been collected and checked.

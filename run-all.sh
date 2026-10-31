@@ -70,6 +70,15 @@ fi
 
 hol_dir="$workspace/hol-light"
 hol_commit=$(cat "$hol_dir/HOL_LIGHT_COMMIT")
+if [ ! -x "$hol_dir/_opam/bin/ocamlc" ]; then
+  echo "The workspace OCaml compiler is missing: $hol_dir/_opam/bin/ocamlc" >&2
+  exit 1
+fi
+ocaml_version=$("$hol_dir/_opam/bin/ocamlc" -version)
+if ! [[ "$ocaml_version" =~ ^[0-9]+\.[0-9]+\.[0-9]+([+~._-][A-Za-z0-9.+~-]+)?$ ]]; then
+  echo "The workspace returned an invalid OCaml version: $ocaml_version" >&2
+  exit 1
+fi
 run_id="$start_date-$hol_commit"
 result_dir="$results_root/$run_id"
 
@@ -86,6 +95,7 @@ trap - EXIT
 echo "Workspace: $workspace"
 echo "Results:   $result_dir"
 echo "HOL Light: $hol_commit"
+echo "OCaml:     $ocaml_version"
 echo "Scripts:   $scripts_commit (dirty=$scripts_dirty)"
 
 overall_status=0
@@ -237,6 +247,7 @@ export RUN_ALL_RESULTS_ROOT="$results_root"
 export RUN_ALL_RUN_ID="$run_id"
 export RUN_ALL_DATE="$start_date"
 export RUN_ALL_HOL_COMMIT="$hol_commit"
+export RUN_ALL_OCAML_VERSION="$ocaml_version"
 export RUN_ALL_HOL_REPO="$hol_repo_url"
 export RUN_ALL_SCRIPTS_COMMIT="$scripts_commit"
 export RUN_ALL_SCRIPTS_DIRTY="$scripts_dirty"
@@ -276,13 +287,14 @@ manifest = {
     "date": os.environ["RUN_ALL_DATE"],
     "hol_light_label": hol_label,
     "hol_light_commit": os.environ["RUN_ALL_HOL_COMMIT"],
+    "ocaml_version": os.environ["RUN_ALL_OCAML_VERSION"],
     "benchmark_scripts_commit": os.environ["RUN_ALL_SCRIPTS_COMMIT"],
     "benchmark_scripts_dirty": os.environ["RUN_ALL_SCRIPTS_DIRTY"] == "true",
     "repositories": {
         "HOL Light": hol_repository,
         "s2n-bignum": "https://github.com/awslabs/s2n-bignum",
         "Flyspeck": "https://github.com/hol-light-family/Flyspeck",
-        "Navier_Stokes": "https://github.com/hol-light-family/Navier_Stokes",
+        "Navier-Stokes": "https://github.com/hol-light-family/Navier_Stokes",
         "benchmark-scripts": "https://github.com/hol-light-family/benchmark-scripts",
     },
     "reports": [{"label": label, "file": name} for label, name in report_entries],
@@ -296,6 +308,7 @@ entry = {
     "date": manifest["date"],
     "hol_light_label": hol_label,
     "hol_light_commit": manifest["hol_light_commit"],
+    "ocaml_version": manifest["ocaml_version"],
     "benchmark_scripts_commit": manifest["benchmark_scripts_commit"],
     "manifest": f"{run_id}/manifest.json",
 }
