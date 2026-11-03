@@ -5,6 +5,10 @@
 # Creates a fresh HOL Light workspace, runs holtest, s2n-bignum ARM and x86,
 # Flyspeck, Navier_Stokes, and parallel 4CT, writes all result JSON files to a
 # dated directory under benchmark-results, and prepends the run to runs.json.
+#
+# s2n-bignum, Flyspeck, and Navier_Stokes default to the latest commit (HEAD)
+# of their default branches. Set S2N_BIGNUM_COMMIT, FLYSPECK_COMMIT, or
+# NAVIER_STOKES_COMMIT to pin a specific commit-ish instead.
 set -euo pipefail
 
 script_dir=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
@@ -21,11 +25,11 @@ results_root=${3:-"$HOME/benchmark-results"}
 runs_parent=${4:-"$HOME/holbench-runs"}
 
 s2n_repo_url=${S2N_BIGNUM_REPO_URL:-https://github.com/awslabs/s2n-bignum.git}
-s2n_commit=${S2N_BIGNUM_COMMIT:-6ea503b84f41688bd479d305dd2e4a3ef8ae1e7c}
+s2n_commit=${S2N_BIGNUM_COMMIT:-HEAD}
 flyspeck_repo_url=${FLYSPECK_REPO_URL:-https://github.com/hol-light-family/Flyspeck.git}
-flyspeck_commit=${FLYSPECK_COMMIT:-51447cb63acd3af4190b7113438f6b5af4fc6951}
+flyspeck_commit=${FLYSPECK_COMMIT:-HEAD}
 navier_stokes_repo_url=${NAVIER_STOKES_REPO_URL:-https://github.com/hol-light-family/Navier_Stokes.git}
-navier_stokes_commit=${NAVIER_STOKES_COMMIT:-2b506b4288b5a94dc8394da7dfcd119ce88d2ac0}
+navier_stokes_commit=${NAVIER_STOKES_COMMIT:-HEAD}
 
 mkdir -p "$results_root" "$runs_parent"
 results_root=$(cd "$results_root" && pwd)
@@ -153,6 +157,7 @@ echo "===== Clone s2n-bignum ====="
 "$script_dir/s2n-bignum/ubuntu/clone-repo.sh" \
   "$workspace" "$s2n_repo_url" "$s2n_commit" \
   > "$workspace/logs/s2n-clone.log" 2>&1
+echo "s2n-bignum: $(cat "$workspace/s2n-bignum/S2N_BIGNUM_COMMIT")"
 "$script_dir/s2n-bignum/ubuntu/install-dependencies.sh" \
   > "$workspace/logs/s2n-dependencies.log" 2>&1
 
@@ -179,12 +184,14 @@ echo "===== Clone Flyspeck ====="
 "$script_dir/Flyspeck/ubuntu/clone-repo.sh" \
   "$workspace" "$flyspeck_repo_url" "$flyspeck_commit" \
   > "$workspace/logs/flyspeck-clone.log" 2>&1
+echo "Flyspeck: $(cat "$workspace/Flyspeck/FLYSPECK_COMMIT")"
 
 echo
 echo "===== Clone Navier_Stokes ====="
 "$script_dir/navier-stokes/ubuntu/clone-repo.sh" \
   "$workspace" "$navier_stokes_repo_url" "$navier_stokes_commit" \
   > "$workspace/logs/navier-stokes-clone.log" 2>&1
+echo "Navier_Stokes: $(cat "$workspace/Navier_Stokes/NAVIER_STOKES_COMMIT")"
 
 echo
 echo "===== Start Flyspeck, Navier_Stokes, and parallel 4CT ====="

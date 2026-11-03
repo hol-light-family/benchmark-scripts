@@ -31,9 +31,9 @@ The last two arguments default to `~/benchmark-results` and
   <HOL Light commit>
 ```
 
-For comparable HOL Light runs, the script defaults to the pinned s2n-bignum,
-Flyspeck, and Navier_Stokes revisions used by the existing reports. Override
-them when needed:
+s2n-bignum, Flyspeck, and Navier_Stokes default to the latest commit (`HEAD`)
+of their default branches. The resolved commits are printed and recorded in
+the result files. To pin specific revisions instead:
 
 ```bash
 S2N_BIGNUM_COMMIT=<commit-ish> \
