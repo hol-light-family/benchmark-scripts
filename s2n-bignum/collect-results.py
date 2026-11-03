@@ -22,11 +22,15 @@ whatever version of s2n-bignum is checked out.
 
 Status is derived like this for each proof log name <p> (e.g.
 "p256/bignum_add_p256.correct"):
-  - missing : <arch dir>/<p> does not exist, i.e. the proof never ran
-              (interrupted run, or `make` stopped early).
-  - fail    : the log contains a line matching the suspicious-marker pattern
-              shared with common/check-failures.sh ("error:", "exception:",
-              or "error in included file", case-insensitive).
+  - missing : <arch dir>/<p> does not exist and run.sh's make phases did not
+              finish (no <arch dir>/HOLBENCH_MAKE_FINISHED marker), i.e. the
+              run was interrupted before the proof had a chance to run.
+  - fail    : <arch dir>/<p> does not exist although the make phases
+              finished (the proof failed to build), or the log contains a
+              line matching the suspicious-marker pattern shared with
+              common/check-failures.sh ("error:", "exception:", or "error in
+              included file", case-insensitive), or the log has no
+              "Running time" line (the proof binary crashed before its end).
   - pass    : none of the above.
 
 s2n-bignum has no equivalent of holtest.mk's "skip" (it has no tests that are
@@ -128,7 +132,7 @@ def get_proof_logs(arch_dir: Path) -> list[str]:
     return names
 
 
-def classify(arch_dir: Path, proof_log: str) -> dict:
+def classify(arch_dir: Path, proof_log: str, make_finished: bool) -> dict:
     log_path = arch_dir / proof_log
 
     record = {
@@ -137,7 +141,10 @@ def classify(arch_dir: Path, proof_log: str) -> dict:
     }
 
     if not log_path.exists():
-        record["status"] = "missing"
+        # After run.sh's make phases finished, a missing log means the proof
+        # failed to build (or make gave up on it), not that it never had the
+        # chance to run.
+        record["status"] = "fail" if make_finished else "missing"
         record.update(parse_timing(""))
         record["specs"] = []
         return record
@@ -146,7 +153,13 @@ def classify(arch_dir: Path, proof_log: str) -> dict:
 
     record.update(parse_timing(log_text))
     record["specs"] = parse_specs(log_text)
-    record["status"] = "fail" if is_failed(log_text) else "pass"
+    # ../tools/run-proof.sh sends the binary's stderr (where an uncaught
+    # exception is printed) to make's output, not to the log, so a crashed
+    # proof leaves a log with no error marker. The "Running time" line is
+    # only printed when the proof binary reaches its end, so its absence is
+    # also a failure.
+    failed = is_failed(log_text) or record["elapsed_seconds"] is None
+    record["status"] = "fail" if failed else "pass"
     return record
 
 
@@ -203,7 +216,8 @@ def main() -> int:
         return 1
 
     proof_logs = get_proof_logs(arch_dir)
-    results = [classify(arch_dir, name) for name in proof_logs]
+    make_finished = (arch_dir / "HOLBENCH_MAKE_FINISHED").is_file()
+    results = [classify(arch_dir, name, make_finished) for name in proof_logs]
 
     counts = {"pass": 0, "fail": 0, "skip": 0, "missing": 0}
     for r in results:

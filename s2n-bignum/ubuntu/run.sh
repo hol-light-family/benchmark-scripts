@@ -79,10 +79,20 @@ echo "build -j$build_cores, run -j$run_cores (physical cores=$physical_cores)"
 
 cd "$s2n_dir/$arch"
 
+# Marker telling collect-results.py that the make phases below finished, so a
+# proof without a .correct log failed to build or run rather than being cut
+# off by an interrupted run.
+completion_marker="$s2n_dir/$arch/HOLBENCH_MAKE_FINISHED"
+rm -f "$completion_marker"
+
 # Build the proof binaries first (lighter), then run the proofs
-# (heavy, memory-capped). Tutorials are excluded.
-make -j"$build_cores" HOLDIR="$HOLDIR" build_proofs
-make -j"$run_cores"   HOLDIR="$HOLDIR" proofs
+# (heavy, memory-capped). Tutorials are excluded. -k keeps going past a
+# failing proof so that one broken proof does not stop every other proof
+# from being built and run; failures are reported at the end.
+make_status=0
+make -k -j"$build_cores" HOLDIR="$HOLDIR" build_proofs || make_status=$?
+make -k -j"$run_cores"   HOLDIR="$HOLDIR" proofs || make_status=$?
+touch "$completion_marker"
 
 cd "$s2n_dir"
 
@@ -104,4 +114,9 @@ if [ "${#correct_files[@]}" -eq 0 ]; then
   echo "No *.correct files found under $s2n_dir/$arch (did 'make proofs' run?)." >&2
 else
   "$script_dir/../../common/check-failures.sh" "${correct_files[@]}"
+fi
+
+if [ "$make_status" -ne 0 ]; then
+  echo "make reported failures (exit $make_status); see the output above." >&2
+  exit "$make_status"
 fi
