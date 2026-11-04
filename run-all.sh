@@ -302,7 +302,7 @@ report_entries = [
     ("s2n-bignum x86", "s2n-bignum-x86-results.json"),
     ("Flyspeck", "flyspeck-results.json"),
     ("Navier-Stokes", "navier-stokes-results.json"),
-    ("Catalan's constant", "catalan-is-irrational-results.json"),
+    ("Catalan's constant irrational", "catalan-is-irrational-results.json"),
     ("Four Colour Theorem", "4ct-results.json"),
 ]
 missing = [name for _, name in report_entries if not (result_dir / name).is_file()]
