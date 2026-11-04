@@ -10,7 +10,7 @@ optional. Replace the argument name with a value; do not type the brackets.
 
 ## Run the complete suite
 
-`run-all.sh` creates a workspace, runs every benchmark, writes the six JSON
+`run-all.sh` creates a workspace, runs every benchmark, writes the seven JSON
 reports and a manifest under the requested results directory, and prepends the
 run to `runs.json`:
 
@@ -31,21 +31,22 @@ The last two arguments default to `~/benchmark-results` and
   <HOL Light commit>
 ```
 
-s2n-bignum, Flyspeck, and Navier_Stokes default to the latest commit (`HEAD`)
-of their default branches. The resolved commits are printed and recorded in
+s2n-bignum, Flyspeck, Navier_Stokes, and catalan-is-irrational default to the
+latest commit (`HEAD`) of their default branches. The resolved commits are printed and recorded in
 the result files. To pin specific revisions instead:
 
 ```bash
 S2N_BIGNUM_COMMIT=<commit-ish> \
 FLYSPECK_COMMIT=<commit-ish> \
 NAVIER_STOKES_COMMIT=<commit-ish> \
+CATALAN_IS_IRRATIONAL_COMMIT=<commit-ish> \
   ./run-all.sh <HOL Light repo URL> <commit-ish>
 ```
 
 The script runs the major stages sequentially, except Flyspeck, Navier-Stokes,
-and parallel 4CT. Those three overlap because Flyspeck and Navier-Stokes are
-single-core. If a benchmark fails, the
-script still attempts to collect its report and continue, then exits nonzero.
+catalan-is-irrational, and parallel 4CT. Those four overlap because Flyspeck,
+Navier-Stokes, and catalan-is-irrational are single-core. If a benchmark fails,
+the script still attempts to collect its report and continue, then exits nonzero.
 It refuses to overwrite an existing result directory.
 
 ## Create a workspace
@@ -109,6 +110,7 @@ in the workspace and collect its JSON report:
 | Flyspeck | [`Flyspeck/README.md`](Flyspeck/README.md) |
 | Four Colour Theorem | [`4CT/README.md`](4CT/README.md) |
 | Navier-Stokes | [`navier-stokes/README.md`](navier-stokes/README.md) |
+| Catalan's constant is irrational | [`catalan-is-irrational/README.md`](catalan-is-irrational/README.md) |
 
 ## Result format
 
