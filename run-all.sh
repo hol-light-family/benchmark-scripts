@@ -1,6 +1,6 @@
 #!/bin/bash
 # run-all.sh <HOL Light repo URL> <commit-ish> [benchmark-results dir]
-#            [runs parent]
+#            [runs output dir path]
 #
 # Creates a fresh HOL Light workspace, runs holtest, s2n-bignum ARM and x86,
 # Flyspeck, Navier_Stokes, catalan-is-irrational, and parallel 4CT, writes all
@@ -17,7 +17,7 @@ script_dir=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 
 if [ "$#" -lt 2 ] || [ "$#" -gt 4 ]; then
   echo "run-all.sh <HOL Light repo URL> <commit-ish> [benchmark-results dir]" >&2
-  echo "           [runs parent]" >&2
+  echo "           [runs output dir path]" >&2
   exit 1
 fi
 

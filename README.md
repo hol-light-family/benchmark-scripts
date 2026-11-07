@@ -19,7 +19,7 @@ run to `runs.json`:
   <HOL Light repo URL> \
   <commit-ish> \
   [benchmark-results dir] \
-  [runs parent]
+  [runs parent output dir]
 ```
 
 The last two arguments default to `~/benchmark-results` and
