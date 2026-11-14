@@ -3,14 +3,15 @@
 #            [runs output dir path]
 #
 # Creates a fresh HOL Light workspace, runs holtest, s2n-bignum ARM and x86,
-# Flyspeck, Navier_Stokes, catalan-is-irrational, and parallel 4CT, writes all
-# result JSON files to a dated directory under benchmark-results, and prepends
-# the run to runs.json.
+# Flyspeck, Navier_Stokes, catalan-is-irrational, Poincare, and parallel 4CT,
+# writes all result JSON files to a dated directory under benchmark-results,
+# and prepends the run to runs.json.
 #
-# s2n-bignum, Flyspeck, Navier_Stokes, and catalan-is-irrational default to
-# the latest commit (HEAD) of their default branches. Set S2N_BIGNUM_COMMIT,
-# FLYSPECK_COMMIT, NAVIER_STOKES_COMMIT, or CATALAN_IS_IRRATIONAL_COMMIT to pin
-# a specific commit-ish instead.
+# s2n-bignum, Flyspeck, Navier_Stokes, catalan-is-irrational, and Poincare
+# default to the latest commit (HEAD) of their default branches. Set
+# S2N_BIGNUM_COMMIT, FLYSPECK_COMMIT, NAVIER_STOKES_COMMIT,
+# CATALAN_IS_IRRATIONAL_COMMIT, or POINCARE_COMMIT to pin a specific
+# commit-ish instead.
 set -euo pipefail
 
 script_dir=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
@@ -34,6 +35,8 @@ navier_stokes_repo_url=${NAVIER_STOKES_REPO_URL:-https://github.com/hol-light-fa
 navier_stokes_commit=${NAVIER_STOKES_COMMIT:-HEAD}
 catalan_is_irrational_repo_url=${CATALAN_IS_IRRATIONAL_REPO_URL:-https://github.com/hol-light-family/catalan-is-irrational.git}
 catalan_is_irrational_commit=${CATALAN_IS_IRRATIONAL_COMMIT:-HEAD}
+poincare_repo_url=${POINCARE_REPO_URL:-https://github.com/hol-light-family/Poincare.git}
+poincare_commit=${POINCARE_COMMIT:-HEAD}
 
 mkdir -p "$results_root" "$runs_parent"
 results_root=$(cd "$results_root" && pwd)
@@ -179,10 +182,11 @@ for arch in arm x86; do
     -o "$result_dir/s2n-bignum-$arch-results.json"
 done
 
-# Flyspeck, Navier_Stokes, catalan-is-irrational, and 4CT can safely overlap:
-# Flyspeck's full sequence and the Navier_Stokes and catalan-is-irrational
-# sessions are single-core (Navier_Stokes peaks at about 8 GB), while 4CT uses
-# OCaml domains and the run script enforces its own limit.
+# Flyspeck, Navier_Stokes, catalan-is-irrational, Poincare, and 4CT can safely
+# overlap: Flyspeck's full sequence and the Navier_Stokes,
+# catalan-is-irrational, and Poincare sessions are single-core (Navier_Stokes
+# peaks at about 8 GB, Poincare at about 18 GB), while 4CT uses OCaml domains
+# and the run script enforces its own limit.
 echo
 echo "===== Clone Flyspeck ====="
 "$script_dir/Flyspeck/ubuntu/clone-repo.sh" \
@@ -205,7 +209,14 @@ echo "===== Clone catalan-is-irrational ====="
 echo "catalan-is-irrational: $(cat "$workspace/catalan-is-irrational/CATALAN_IS_IRRATIONAL_COMMIT")"
 
 echo
-echo "===== Start Flyspeck, Navier_Stokes, catalan-is-irrational, and parallel 4CT ====="
+echo "===== Clone Poincare ====="
+"$script_dir/poincare/ubuntu/clone-repo.sh" \
+  "$workspace" "$poincare_repo_url" "$poincare_commit" \
+  > "$workspace/logs/poincare-clone.log" 2>&1
+echo "Poincare: $(cat "$workspace/Poincare/POINCARE_COMMIT")"
+
+echo
+echo "===== Start Flyspeck, Navier_Stokes, catalan-is-irrational, Poincare, and parallel 4CT ====="
 "$script_dir/Flyspeck/ubuntu/run.sh" \
   "$workspace/Flyspeck" "$hol_dir" "$workspace/logs/flyspeck-run.log" \
   > "$workspace/logs/flyspeck-run-wrapper.log" 2>&1 &
@@ -220,6 +231,11 @@ navier_stokes_pid=$!
   "$workspace/catalan-is-irrational" "$hol_dir" "$workspace/logs/catalan-is-irrational-run.log" \
   > "$workspace/logs/catalan-is-irrational-run-wrapper.log" 2>&1 &
 catalan_is_irrational_pid=$!
+
+"$script_dir/poincare/ubuntu/run.sh" \
+  "$workspace/Poincare" "$hol_dir" "$workspace/logs/poincare-run.log" \
+  > "$workspace/logs/poincare-run-wrapper.log" 2>&1 &
+poincare_pid=$!
 
 "$script_dir/4CT/ubuntu/run.sh" \
   "$hol_dir" "$workspace/logs/4ct-run.log" \
@@ -243,6 +259,12 @@ if wait "$catalan_is_irrational_pid"; then
 else
   status=$?
   record_failure "catalan-is-irrational (exit $status)"
+fi
+if wait "$poincare_pid"; then
+  echo "Completed: Poincare"
+else
+  status=$?
+  record_failure "Poincare (exit $status)"
 fi
 if wait "$fourct_pid"; then
   echo "Completed: 4CT"
@@ -270,13 +292,19 @@ collect_and_record \
   "$workspace/catalan-is-irrational" "$workspace/logs/catalan-is-irrational-run.log" \
   --hol-light-dir "$hol_dir" -o "$result_dir/catalan-is-irrational-results.json"
 collect_and_record \
+  "Poincare" \
+  "$workspace/logs/poincare-collect.stdout.json" \
+  "$script_dir/poincare/collect-results.py" \
+  "$workspace/Poincare" "$workspace/logs/poincare-run.log" \
+  --hol-light-dir "$hol_dir" -o "$result_dir/poincare-results.json"
+collect_and_record \
   "4CT" \
   "$workspace/logs/4ct-collect.stdout.json" \
   "$script_dir/4CT/collect-results.py" \
   "$hol_dir" "$workspace/logs/4ct-run.log" \
   -o "$result_dir/4ct-results.json"
 
-# Publish the run to the results index only if all seven report files exist.
+# Publish the run to the results index only if all eight report files exist.
 export RUN_ALL_RESULT_DIR="$result_dir"
 export RUN_ALL_RESULTS_ROOT="$results_root"
 export RUN_ALL_RUN_ID="$run_id"
@@ -303,6 +331,7 @@ report_entries = [
     ("Flyspeck", "flyspeck-results.json"),
     ("Navier-Stokes", "navier-stokes-results.json"),
     ("Catalan's constant irrational", "catalan-is-irrational-results.json"),
+    ("Poincare conjecture", "poincare-results.json"),
     ("Four Colour Theorem", "4ct-results.json"),
 ]
 missing = [name for _, name in report_entries if not (result_dir / name).is_file()]
@@ -332,6 +361,7 @@ manifest = {
         "Flyspeck": "https://github.com/hol-light-family/Flyspeck",
         "Navier-Stokes": "https://github.com/hol-light-family/Navier_Stokes",
         "catalan-is-irrational": "https://github.com/hol-light-family/catalan-is-irrational",
+        "Poincare": "https://github.com/hol-light-family/Poincare",
         "benchmark-scripts": "https://github.com/hol-light-family/benchmark-scripts",
     },
     "reports": [{"label": label, "file": name} for label, name in report_entries],
