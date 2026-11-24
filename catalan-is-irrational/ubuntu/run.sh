@@ -59,7 +59,12 @@ trap 'status=$?; rm -f "$command_file"; notify_exit "$status"' EXIT
 # prioritize_real(), the same number priority used to parse it there; set it
 # again so these terms parse the same way. Each report is its own phrase, so
 # a missing theorem only drops that report (and prints an Error: line).
+#
+# hol.sh installs the colored term/theorem printers, which wrap every token in
+# ANSI escape codes; switch to the plain printers so the log is readable and
+# can be searched for failure messages.
 cat > "$command_file" <<'EOF'
+set_color_printer false;;
 let cat_bench_stage edge =
   print_newline (); flush stdout; flush stderr;
   ignore (Sys.command
