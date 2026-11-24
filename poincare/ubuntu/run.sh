@@ -23,6 +23,8 @@ fi
 poincare_root=$(cd "$1" && pwd)
 hol_light_dir=$(cd "$2" && pwd)
 log_file=${3:-"$(dirname "$poincare_root")/poincare-run.log"}
+source "$script_dir/../../common/notify.sh"
+notify_on_exit "Poincare" "$log_file"
 
 for required in make.ml check.ml audit/make.ml audit/check.ml; do
   if [ ! -f "$poincare_root/$required" ]; then
@@ -45,7 +47,7 @@ export LINE_EDITOR=env
 mkdir -p "$(dirname "$log_file")"
 log_file=$(cd "$(dirname "$log_file")" && pwd)/$(basename "$log_file")
 command_file=$(mktemp)
-trap 'rm -f "$command_file"' EXIT
+trap 'status=$?; rm -f "$command_file"; notify_exit "$status"' EXIT
 
 # Stage markers are printed by a child `date` process because Unix is not
 # loaded in the HOL Light toplevel. The marker words are concatenated so the

@@ -10,7 +10,7 @@ optional. Replace the argument name with a value; do not type the brackets.
 
 ## Run the complete suite
 
-`run-all.sh` creates a workspace, runs every benchmark, writes the eight JSON
+`run-all.sh` creates a workspace, runs every benchmark, writes the nine JSON
 reports and a manifest under the requested results directory, and prepends the
 run to `runs.json`:
 
@@ -31,8 +31,8 @@ The last two arguments default to `~/benchmark-results` and
   <HOL Light commit>
 ```
 
-s2n-bignum, Flyspeck, Navier_Stokes, catalan-is-irrational, and Poincare
-default to the latest commit (`HEAD`) of their default branches. The resolved commits are printed and recorded in
+s2n-bignum, Flyspeck, Navier_Stokes, catalan-is-irrational, Poincare, and
+LightCake default to the latest commit (`HEAD`) of their default branches. The resolved commits are printed and recorded in
 the result files. To pin specific revisions instead:
 
 ```bash
@@ -41,14 +41,33 @@ FLYSPECK_COMMIT=<commit-ish> \
 NAVIER_STOKES_COMMIT=<commit-ish> \
 CATALAN_IS_IRRATIONAL_COMMIT=<commit-ish> \
 POINCARE_COMMIT=<commit-ish> \
+LIGHTCAKE_COMMIT=<commit-ish> \
   ./run-all.sh <HOL Light repo URL> <commit-ish>
 ```
 
 The script runs the major stages sequentially, except Flyspeck, Navier-Stokes,
-catalan-is-irrational, Poincare, and parallel 4CT. Those five overlap because
-Flyspeck, Navier-Stokes, catalan-is-irrational, and Poincare are single-core. If a benchmark fails,
+catalan-is-irrational, Poincare, LightCake, and parallel 4CT. Those six overlap
+because Flyspeck, Navier-Stokes, catalan-is-irrational, Poincare, and LightCake
+are single-core. If a benchmark fails,
 the script still attempts to collect its report and continue, then exits nonzero.
 It refuses to overwrite an existing result directory.
+
+## E-mail notifications
+
+Set `NOTIFY_TO` to receive an e-mail when each benchmark's `run.sh` ends,
+whether it passed or failed, and when `run-all.sh` ends or stops early:
+
+```bash
+NOTIFY_TO=you@example.com ./run-all.sh <HOL Light repo URL> <commit-ish>
+```
+
+Each message has the exit status, host, elapsed time, and the last lines of
+the log. Nothing is sent when `NOTIFY_TO` is unset. The scripts try `mail`,
+`msmtp`, then `sendmail`, so configure one of them on the machine (for
+example `~/.msmtprc`); no credentials are stored in this repository. If no
+mailer works, the message is saved as `UNSENT-*.txt` in `$NOTIFY_UNSENT_DIR`
+(default `/tmp`). `NOTIFY_FROM` sets the sender address. See
+`common/notify.sh` for the other settings.
 
 ## Create a workspace
 
@@ -113,6 +132,7 @@ in the workspace and collect its JSON report:
 | Navier-Stokes | [`navier-stokes/README.md`](navier-stokes/README.md) |
 | Catalan's constant is irrational | [`catalan-is-irrational/README.md`](catalan-is-irrational/README.md) |
 | Poincare conjecture | [`poincare/README.md`](poincare/README.md) |
+| CakeML compiler correctness (LightCake) | [`lightcake/README.md`](lightcake/README.md) |
 
 ## Result format
 

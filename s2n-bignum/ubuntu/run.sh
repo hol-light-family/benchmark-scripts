@@ -32,6 +32,8 @@ fi
 
 s2n_dir=$(cd "$1" && pwd)
 arch=$2
+source "$script_dir/../../common/notify.sh"
+notify_on_exit "s2n-bignum $arch"
 hol_light_dir=$(cd "$3" && pwd)
 
 case "$arch" in

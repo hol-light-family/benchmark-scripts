@@ -22,6 +22,8 @@ fi
 catalan_root=$(cd "$1" && pwd)
 hol_light_dir=$(cd "$2" && pwd)
 log_file=${3:-"$(dirname "$catalan_root")/catalan-is-irrational-run.log"}
+source "$script_dir/../../common/notify.sh"
+notify_on_exit "catalan-is-irrational" "$log_file"
 
 for required in make.ml src/catalan_main.ml src/catalan_statement.ml; do
   if [ ! -f "$catalan_root/$required" ]; then
@@ -44,7 +46,7 @@ export LINE_EDITOR=env
 mkdir -p "$(dirname "$log_file")"
 log_file=$(cd "$(dirname "$log_file")" && pwd)/$(basename "$log_file")
 command_file=$(mktemp)
-trap 'rm -f "$command_file"' EXIT
+trap 'status=$?; rm -f "$command_file"; notify_exit "$status"' EXIT
 
 # Stage markers are printed by a child `date` process because Unix is not
 # loaded in the HOL Light toplevel. Marker words are concatenated so the

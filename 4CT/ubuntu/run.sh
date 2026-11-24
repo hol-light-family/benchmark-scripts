@@ -15,6 +15,8 @@ fi
 
 hol_light_dir=$(cd "$1" && pwd)
 log_file=${2:-"$(dirname "$hol_light_dir")/4ct-run.log"}
+source "$script_dir/../../common/notify.sh"
+notify_on_exit "4CT" "$log_file"
 fourct_dir="$hol_light_dir/4CT"
 
 if [ ! -x "$hol_light_dir/hol.sh" ]; then

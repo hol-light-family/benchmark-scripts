@@ -14,6 +14,8 @@
 # share nothing else only when they also use separate checkouts.
 set -euo pipefail
 
+script_dir=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+
 if [ "$#" -lt 1 ] || [ "$#" -gt 2 ]; then
   echo "run.sh <hol-light dir> [log dir]" >&2
   exit 1
@@ -21,6 +23,8 @@ fi
 
 hol_light_dir=$(cd "$1" && pwd)
 log_dir=${2:-/tmp/hol-light-test}
+source "$script_dir/../../common/notify.sh"
+notify_on_exit "HOL Light holtest" "${NOTIFY_LOG:-$log_dir/holtest.log}"
 
 bin_dir="$hol_light_dir/external-bin"
 if [ -d "$bin_dir" ]; then

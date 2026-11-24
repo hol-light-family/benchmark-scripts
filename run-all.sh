@@ -3,18 +3,27 @@
 #            [runs output dir path]
 #
 # Creates a fresh HOL Light workspace, runs holtest, s2n-bignum ARM and x86,
-# Flyspeck, Navier_Stokes, catalan-is-irrational, Poincare, and parallel 4CT,
-# writes all result JSON files to a dated directory under benchmark-results,
+# Flyspeck, Navier_Stokes, catalan-is-irrational, Poincare, LightCake, and
+# parallel 4CT, writes all result JSON files to a dated directory under benchmark-results,
 # and prepends the run to runs.json.
 #
-# s2n-bignum, Flyspeck, Navier_Stokes, catalan-is-irrational, and Poincare
-# default to the latest commit (HEAD) of their default branches. Set
+# s2n-bignum, Flyspeck, Navier_Stokes, catalan-is-irrational, Poincare, and
+# LightCake default to the latest commit (HEAD) of their default branches. Set
 # S2N_BIGNUM_COMMIT, FLYSPECK_COMMIT, NAVIER_STOKES_COMMIT,
-# CATALAN_IS_IRRATIONAL_COMMIT, or POINCARE_COMMIT to pin a specific
-# commit-ish instead.
+# CATALAN_IS_IRRATIONAL_COMMIT, POINCARE_COMMIT, or LIGHTCAKE_COMMIT to pin a
+# specific commit-ish instead.
+#
+# Set NOTIFY_TO to an e-mail address to be notified. Each benchmark's run.sh
+# sends its own message when it ends, and run-all.sh sends a final summary, or
+# a failure message if it stops early. See common/notify.sh for the settings.
 set -euo pipefail
 
 script_dir=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+source "$script_dir/common/notify.sh"
+# NOTIFY_LOG, if set by the caller, is this script's own output log. Keep it
+# out of the environment so that child scripts do not inherit it.
+run_all_log=${NOTIFY_LOG:-}
+unset NOTIFY_LOG
 
 if [ "$#" -lt 2 ] || [ "$#" -gt 4 ]; then
   echo "run-all.sh <HOL Light repo URL> <commit-ish> [benchmark-results dir]" >&2
@@ -37,6 +46,8 @@ catalan_is_irrational_repo_url=${CATALAN_IS_IRRATIONAL_REPO_URL:-https://github.
 catalan_is_irrational_commit=${CATALAN_IS_IRRATIONAL_COMMIT:-HEAD}
 poincare_repo_url=${POINCARE_REPO_URL:-https://github.com/hol-light-family/Poincare.git}
 poincare_commit=${POINCARE_COMMIT:-HEAD}
+lightcake_repo_url=${LIGHTCAKE_REPO_URL:-https://github.com/hol-light-family/LightCake.git}
+lightcake_commit=${LIGHTCAKE_COMMIT:-HEAD}
 
 mkdir -p "$results_root" "$runs_parent"
 results_root=$(cd "$results_root" && pwd)
@@ -60,7 +71,8 @@ fi
 
 start_date=$(date -u +%Y-%m-%d)
 create_log=$(mktemp)
-trap 'rm -f "$create_log"' EXIT
+notify_on_exit "run-all.sh" "$run_all_log"
+trap 'status=$?; rm -f "$create_log"; notify_exit "$status"' EXIT
 
 echo "===== Create HOL Light workspace ====="
 echo "Repository: $hol_repo_url"
@@ -90,6 +102,10 @@ if ! [[ "$ocaml_version" =~ ^[0-9]+\.[0-9]+\.[0-9]+([+~._-][A-Za-z0-9.+~-]+)?$ ]
   echo "The workspace returned an invalid OCaml version: $ocaml_version" >&2
   exit 1
 fi
+hol_light_version=$(sed -n 's/^let hol_version = "\(.*\)";;$/\1/p' "$hol_dir/hol.ml" | head -n 1)
+if [ -z "$hol_light_version" ]; then
+  echo "Warning: could not read hol_version from $hol_dir/hol.ml" >&2
+fi
 run_id="$start_date-$hol_commit"
 result_dir="$results_root/$run_id"
 
@@ -101,12 +117,13 @@ fi
 mkdir -p "$workspace/logs" "$result_dir"
 mv "$create_log" "$workspace/logs/create-workspace.log"
 create_log="$workspace/logs/create-workspace.log"
-trap - EXIT
+trap 'notify_exit "$?"' EXIT
 
 echo "Workspace: $workspace"
 echo "Results:   $result_dir"
 echo "HOL Light: $hol_commit"
 echo "OCaml:     $ocaml_version"
+echo "Version:   ${hol_light_version:-unknown}"
 echo "Scripts:   $scripts_commit (dirty=$scripts_dirty)"
 
 overall_status=0
@@ -122,7 +139,7 @@ run_and_record() {
   echo
   echo "===== $label ====="
   echo "Log: $log_file"
-  if "$@" > "$log_file" 2>&1; then
+  if NOTIFY_LOG="$log_file" "$@" > "$log_file" 2>&1; then
     echo "Completed: $label"
   else
     local status=$?
@@ -182,9 +199,9 @@ for arch in arm x86; do
     -o "$result_dir/s2n-bignum-$arch-results.json"
 done
 
-# Flyspeck, Navier_Stokes, catalan-is-irrational, Poincare, and 4CT can safely
-# overlap: Flyspeck's full sequence and the Navier_Stokes,
-# catalan-is-irrational, and Poincare sessions are single-core (Navier_Stokes
+# Flyspeck, Navier_Stokes, catalan-is-irrational, Poincare, LightCake, and 4CT
+# can safely overlap: Flyspeck's full sequence and the Navier_Stokes,
+# catalan-is-irrational, Poincare, and LightCake sessions are single-core (Navier_Stokes
 # peaks at about 8 GB, Poincare at about 18 GB), while 4CT uses OCaml domains
 # and the run script enforces its own limit.
 echo
@@ -216,7 +233,14 @@ echo "===== Clone Poincare ====="
 echo "Poincare: $(cat "$workspace/Poincare/POINCARE_COMMIT")"
 
 echo
-echo "===== Start Flyspeck, Navier_Stokes, catalan-is-irrational, Poincare, and parallel 4CT ====="
+echo "===== Clone LightCake ====="
+"$script_dir/lightcake/ubuntu/clone-repo.sh" \
+  "$workspace" "$lightcake_repo_url" "$lightcake_commit" \
+  > "$workspace/logs/lightcake-clone.log" 2>&1
+echo "LightCake: $(cat "$workspace/LightCake/LIGHTCAKE_COMMIT")"
+
+echo
+echo "===== Start Flyspeck, Navier_Stokes, catalan-is-irrational, Poincare, LightCake, and parallel 4CT ====="
 "$script_dir/Flyspeck/ubuntu/run.sh" \
   "$workspace/Flyspeck" "$hol_dir" "$workspace/logs/flyspeck-run.log" \
   > "$workspace/logs/flyspeck-run-wrapper.log" 2>&1 &
@@ -236,6 +260,11 @@ catalan_is_irrational_pid=$!
   "$workspace/Poincare" "$hol_dir" "$workspace/logs/poincare-run.log" \
   > "$workspace/logs/poincare-run-wrapper.log" 2>&1 &
 poincare_pid=$!
+
+"$script_dir/lightcake/ubuntu/run.sh" \
+  "$workspace/LightCake" "$hol_dir" "$workspace/logs/lightcake-run.log" \
+  > "$workspace/logs/lightcake-run-wrapper.log" 2>&1 &
+lightcake_pid=$!
 
 "$script_dir/4CT/ubuntu/run.sh" \
   "$hol_dir" "$workspace/logs/4ct-run.log" \
@@ -265,6 +294,12 @@ if wait "$poincare_pid"; then
 else
   status=$?
   record_failure "Poincare (exit $status)"
+fi
+if wait "$lightcake_pid"; then
+  echo "Completed: LightCake"
+else
+  status=$?
+  record_failure "LightCake (exit $status)"
 fi
 if wait "$fourct_pid"; then
   echo "Completed: 4CT"
@@ -298,19 +333,26 @@ collect_and_record \
   "$workspace/Poincare" "$workspace/logs/poincare-run.log" \
   --hol-light-dir "$hol_dir" -o "$result_dir/poincare-results.json"
 collect_and_record \
+  "LightCake" \
+  "$workspace/logs/lightcake-collect.stdout.json" \
+  "$script_dir/lightcake/collect-results.py" \
+  "$workspace/LightCake" "$workspace/logs/lightcake-run.log" \
+  --hol-light-dir "$hol_dir" -o "$result_dir/lightcake-results.json"
+collect_and_record \
   "4CT" \
   "$workspace/logs/4ct-collect.stdout.json" \
   "$script_dir/4CT/collect-results.py" \
   "$hol_dir" "$workspace/logs/4ct-run.log" \
   -o "$result_dir/4ct-results.json"
 
-# Publish the run to the results index only if all eight report files exist.
+# Publish the run to the results index only if all nine report files exist.
 export RUN_ALL_RESULT_DIR="$result_dir"
 export RUN_ALL_RESULTS_ROOT="$results_root"
 export RUN_ALL_RUN_ID="$run_id"
 export RUN_ALL_DATE="$start_date"
 export RUN_ALL_HOL_COMMIT="$hol_commit"
 export RUN_ALL_OCAML_VERSION="$ocaml_version"
+export RUN_ALL_HOL_VERSION="$hol_light_version"
 export RUN_ALL_HOL_REPO="$hol_repo_url"
 export RUN_ALL_SCRIPTS_COMMIT="$scripts_commit"
 export RUN_ALL_SCRIPTS_DIRTY="$scripts_dirty"
@@ -332,6 +374,7 @@ report_entries = [
     ("Navier-Stokes", "navier-stokes-results.json"),
     ("Catalan's constant irrational", "catalan-is-irrational-results.json"),
     ("Poincare conjecture", "poincare-results.json"),
+    ("CakeML compiler correctness (LightCake)", "lightcake-results.json"),
     ("Four Colour Theorem", "4ct-results.json"),
 ]
 missing = [name for _, name in report_entries if not (result_dir / name).is_file()]
@@ -353,6 +396,8 @@ manifest = {
     "hol_light_label": hol_label,
     "hol_light_commit": os.environ["RUN_ALL_HOL_COMMIT"],
     "ocaml_version": os.environ["RUN_ALL_OCAML_VERSION"],
+    **({"hol_light_version": os.environ["RUN_ALL_HOL_VERSION"]}
+       if os.environ.get("RUN_ALL_HOL_VERSION") else {}),
     "benchmark_scripts_commit": os.environ["RUN_ALL_SCRIPTS_COMMIT"],
     "benchmark_scripts_dirty": os.environ["RUN_ALL_SCRIPTS_DIRTY"] == "true",
     "repositories": {
@@ -362,6 +407,7 @@ manifest = {
         "Navier-Stokes": "https://github.com/hol-light-family/Navier_Stokes",
         "catalan-is-irrational": "https://github.com/hol-light-family/catalan-is-irrational",
         "Poincare": "https://github.com/hol-light-family/Poincare",
+        "LightCake": "https://github.com/hol-light-family/LightCake",
         "benchmark-scripts": "https://github.com/hol-light-family/benchmark-scripts",
     },
     "reports": [{"label": label, "file": name} for label, name in report_entries],
@@ -385,7 +431,8 @@ PY
 
 echo
 echo "===== Result summary ====="
-python3 - "$result_dir" <<'PY'
+summary_file=$(mktemp)
+python3 - "$result_dir" <<'PY' | tee "$summary_file"
 import json
 import sys
 from pathlib import Path
@@ -399,6 +446,10 @@ PY
 echo
 echo "Workspace: $workspace"
 echo "Results:   $result_dir"
+NOTIFY_SUMMARY="Results: $result_dir
+Workspace: $workspace
+$(cat "$summary_file")"
+rm -f "$summary_file"
 if [ "$overall_status" -ne 0 ]; then
   echo "One or more benchmarks or collectors failed." >&2
 fi

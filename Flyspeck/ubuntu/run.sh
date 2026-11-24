@@ -20,6 +20,8 @@ fi
 flyspeck_root=$(cd "$1" && pwd)
 hol_light_dir=$(cd "$2" && pwd)
 log_file=${3:-"$(dirname "$flyspeck_root")/flyspeck-run.log"}
+source "$script_dir/../../common/notify.sh"
+notify_on_exit "Flyspeck" "$log_file"
 
 if [ ! -f "$flyspeck_root/load_flyspeck.ml" ]; then
   echo "$flyspeck_root does not contain load_flyspeck.ml" >&2
@@ -43,7 +45,7 @@ eval "$(opam env --switch "$hol_light_dir" --set-switch 2>/dev/null || opam env)
 mkdir -p "$(dirname "$log_file")"
 log_file=$(cd "$(dirname "$log_file")" && pwd)/$(basename "$log_file")
 command_file=$(mktemp)
-trap 'rm -f "$command_file"' EXIT
+trap 'status=$?; rm -f "$command_file"; notify_exit "$status"' EXIT
 
 cat > "$command_file" <<'EOF'
 needs "load_flyspeck.ml";;
